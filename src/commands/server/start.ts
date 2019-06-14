@@ -21,8 +21,10 @@ import { KubeHelper } from '../../api/kube'
 import { HelmHelper } from '../../installers/helm'
 import { MinishiftAddonHelper } from '../../installers/minishift-addon'
 import { OperatorHelper } from '../../installers/operator'
+import { K8sHelper } from '../../platforms/k8s'
 import { MinikubeHelper } from '../../platforms/minikube'
 import { MinishiftHelper } from '../../platforms/minishift'
+import { OpenshiftHelper } from '../../platforms/openshift'
 
 let kube: KubeHelper
 export default class Start extends Command {
@@ -89,10 +91,9 @@ export default class Start extends Command {
     }),
     platform: string({
       char: 'p',
-      description: 'Type of Kubernetes platform. Valid values are \"minikube\", \"minishift\".',
+      description: 'Type of Kubernetes platform. Valid values are \"minikube\", \"minishift\", \"k8s\", \"openshift\".',
       default: 'minikube'
     })
-
   }
 
   static getTemplatesDir(): string {
@@ -122,6 +123,14 @@ export default class Start extends Command {
       if (flags.multiuser && flags.installer === '') {
         flags.installer = 'operator'
       }
+    } else if (flags.platform === 'openshift') {
+      if (flags.installer === '') {
+        flags.installer = 'operator'
+      }
+    } else if (flags.platform === 'k8s') {
+      if (flags.installer === '') {
+        flags.installer = 'helm'
+      }
     }
   }
 
@@ -131,6 +140,8 @@ export default class Start extends Command {
     Start.setPlaformDefaults(flags)
     const minikube = new MinikubeHelper()
     const minishift = new MinishiftHelper()
+    const openshift = new OpenshiftHelper()
+    const k8s = new K8sHelper()
     const helm = new HelmHelper()
     const che = new CheHelper()
     const operator = new OperatorHelper()
@@ -141,6 +152,18 @@ export default class Start extends Command {
       this.error(`🛑 Current platform is ${flags.platform }. Minishift addon is only available on top of Minishift platform.`)
     } else if (flags.platform === 'minishift' && flags.installer && flags.installer === 'helm') {
       this.error(`🛑 Current platform is ${flags.platform }. Helm installer is only available on top of Minikube platform.`)
+    } else if (flags.platform === 'openshift') {
+      if (flags.installer) {
+        if (flags.installer === 'helm') {
+          this.error(`🛑 Current platform is ${flags.platform }. Helm installer is only available on top of Minikube platform.`)
+        } else if (flags.installer === 'minishift-addon') {
+          this.error(`🛑 Current platform is ${flags.platform }. minishift-addon installer is only available on top of Minishift platform.`)
+        }
+      }
+    } else if (flags.platform === 'k8s') {
+      if (flags.installer && flags.installer === 'minishift-addon') {
+        this.error(`🛑 Current platform is ${flags.platform}. minishift-addon installer is only available on top of Minishift platform.`)
+      }
     }
 
     // Platform Checks
@@ -154,6 +177,16 @@ export default class Start extends Command {
       platformCheckTasks.add({
         title: '✈️  Minishift preflight checklist',
         task: () => minishift.startTasks(flags, this)
+      })
+    } else if (flags.platform === 'openshift') {
+      platformCheckTasks.add({
+        title: '✈️  Openshift preflight checklist',
+        task: () => openshift.startTasks(flags, this)
+      })
+    } else if (flags.platform === 'k8s') {
+      platformCheckTasks.add({
+        title: '✈️  Kubernetes preflight checklist',
+        task: () => k8s.startTasks(flags, this)
       })
     } else {
       this.error(`Platformm ${flags.platform} is not supported yet ¯\\_(ツ)_/¯`)
