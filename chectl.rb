@@ -12,7 +12,7 @@ class Chectl < Formula
   def install
 
     system "npm", "install", "-g", "pkg@4.3.8"
-
+    sytem "yarn" , "pack"
 
 
 
